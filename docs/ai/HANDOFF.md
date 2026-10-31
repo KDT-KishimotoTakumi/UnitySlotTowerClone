@@ -5,7 +5,7 @@
 更新: 2026-10-31 Asia/Tokyo / 状態: spec 002（スロットと戦闘の連動強化）の実装完了。手動プレイ（002 T008）は未実施。001 は M3 の T309、M4 の T402〜T406 が未完了（T403 は途中）
 
 - 対象: [spec 002](../../specs/002-slot-battle-link/spec.md)・[plan](../../specs/002-slot-battle-link/plan.md)・[tasks](../../specs/002-slot-battle-link/tasks.md)（2026-10-31 承認）。001 の [spec](../../specs/001-slot-tower-defense/spec.md)・[plan](../../specs/001-slot-tower-defense/plan.md) の該当項目には 002 で変えた印を付けた。[001 tasks](../../specs/001-slot-tower-defense/tasks.md) の完了行は当時の記録のまま。
-- ブランチ: `feature/002-slot-battle-link`（main から。PR を出した）。コミットとPRは日本語。
+- ブランチ: `feature/002-slot-battle-link`（main から。プッシュ済み。この PC に gh CLI がないため PR は未作成。本文案はコミット bbdccc3 の内容に沿う）。コミットとPRは日本語。
 - 002 の要点: 6役（attack・speed・heal・coin・big・reg）、バッファー削除で味方4種、`BattleBuffs`（`slot_rules.csv` の倍率と秒数）、`reg_swarms.csv` の群れ、`SlotNotice` の当たり確定告知、`SlotCelebration`（BIG 白金・REG 赤）。シーンへの反映は Editor `Setup/SlotBattleLinkSetup`（実行済み）。入力の SelectUnit5・Upgrade5 は残っている（何もしない）。
 - 次の一手: ユーザーの手動プレイ（002 T008）の結果を待つ。その後は 001 の T403（文字なし説明。バフと REG の説明の追加は 002 で範囲外にした別作業）か T402。
 - 最終検証（002）: dotnet 383/383、EditMode 432/432、PlayMode 25/25、Console エラー0、ハーネス 8/8。画像 `Artifacts/Automation/Editor/s002-Big-sc.png`・`s002-Reg-sc.png`・`s002-aura5.png` を目視。
