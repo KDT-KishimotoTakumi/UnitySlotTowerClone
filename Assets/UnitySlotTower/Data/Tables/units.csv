@@ -1,0 +1,6 @@
+id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role,buff_rate
+tank,1800,220,300,1.2,3,ground,15,20,melee,1
+sword,1200,400,150,1,2,ground,12,12,melee,1
+archer,700,350,50,1,0,high,14,15,ranged,1
+healer,800,250,60,2.5,0,high,18,25,heal,1
+buffer,900,0,60,1,0,high,18,25,buff,1.3
