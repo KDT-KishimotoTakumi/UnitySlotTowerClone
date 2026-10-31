@@ -13,9 +13,9 @@ namespace UnitySlotTower.Tests.EditMode.Battle
             CsvParser.Parse(BattleMap.PathsFileName, "map_id,path_id,is_air,step,x,y\nm,m_g1,0,1,0,0\nm,m_g1,0,2,1,0\nm,m_g1,0,3,2,0\n"));
 
         private static readonly UnitTable Units = UnitTable.Load(CsvParser.Parse(UnitTable.FileName,
-            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role,buff_rate\n" +
-            "sword,1200,400,150,1,2,ground,12,12,melee,1\n" +
-            "archer,700,350,50,1,0,high,14,15,ranged,1\n"));
+            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role\n" +
+            "sword,1200,400,150,1,2,ground,12,12,melee\n" +
+            "archer,700,350,50,1,0,high,14,15,ranged\n"));
 
         private static GridPoint[] PlaceableCells(string unitId)
         {

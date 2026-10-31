@@ -6,8 +6,9 @@ namespace UnitySlotTower.Core.Battle
 {
     /// <summary>
     /// 1 ウェーブの戦闘（FR-013, FR-024, FR-027, FR-028, FR-030〜033）。<see cref="WaveSchedule"/> どおりに敵を出し、経路を進め、
-    /// 地上の敵を味方にブロックさせ、敵と味方を攻撃させ（回復・強化を含む）、HP0 になった側を消す。ゴールに着いた敵はライフを減らし、
+    /// 地上の敵を味方にブロックさせ、敵と味方を攻撃させ（回復を含む）、HP0 になった側を消す。ゴールに着いた敵はライフを減らし、
     /// 倒された敵はコインを落とす。1/60 秒の固定ステップで進め、ライフ0（ゲームオーバー）で止まる。
+    /// スロットのバフ（<see cref="BattleBuffs"/>）と REG の群れ（<see cref="AddSpawns"/>）も扱う（spec 002）。
     /// </summary>
     public sealed class Battlefield
     {
@@ -16,6 +17,10 @@ namespace UnitySlotTower.Core.Battle
         private readonly IRandom _random;
         private readonly List<BattleEnemy> _enemies = new List<BattleEnemy>();
         private readonly List<BattleUnit> _units = new List<BattleUnit>();
+        private readonly BattleBuffs _buffs;
+
+        // 後から足した出現（REG の群れ）。出現するステップの早い順。
+        private readonly List<(long Tick, WaveSpawn Spawn)> _extraSpawns = new List<(long, WaveSpawn)>();
 
         // 射程ちょうどの距離を浮動小数の誤差で外さないための許容幅。
         private const double RangeEpsilon = 1e-9;
@@ -24,11 +29,13 @@ namespace UnitySlotTower.Core.Battle
 
         /// <param name="life">ウェーブ開始時のライフ（満タン、FR-013）。</param>
         /// <param name="random">撃破ドロップの抽選に使う（FR-033）。</param>
-        public Battlefield(WaveSchedule wave, UnitRanges ranges, int life, IRandom random)
+        /// <param name="buffs">スロットのバフ（spec 002）。null ならバフなし。</param>
+        public Battlefield(WaveSchedule wave, UnitRanges ranges, int life, IRandom random, BattleBuffs buffs = null)
         {
             _wave = wave;
             _ranges = ranges;
             _random = random;
+            _buffs = buffs ?? BattleBuffs.None;
             Life = life;
         }
 
@@ -53,8 +60,42 @@ namespace UnitySlotTower.Core.Battle
         /// <summary>ゴールに着いた敵の数。</summary>
         public int ArrivedCount { get; private set; }
 
-        /// <summary>出現予定の敵がすべて出て、フィールドに敵が残っていない（ゲームオーバーでない）。</summary>
-        public bool IsCleared => !IsGameOver && _nextSpawn >= _wave.Spawns.Count && _enemies.Count == 0;
+        /// <summary>出現予定の敵（後から足した群れを含む）がすべて出て、フィールドに敵が残っていない（ゲームオーバーでない）。</summary>
+        public bool IsCleared => !IsGameOver && _nextSpawn >= _wave.Spawns.Count && _extraSpawns.Count == 0 &&
+                                 _enemies.Count == 0;
+
+        /// <summary>まだ出ていない後から足した出現の数。</summary>
+        public int PendingExtraSpawns => _extraSpawns.Count;
+
+        /// <summary>
+        /// いまの時点から出現を足す（REG の群れ、spec 002 FR-101）。各出現の時刻は今からの秒数で、ウェーブの敵と同じ扱いになる。
+        /// </summary>
+        public void AddSpawns(IReadOnlyList<WaveSpawn> spawns)
+        {
+            foreach (var spawn in spawns)
+            {
+                var tick = Tick + (long)Math.Round(spawn.Time * SimulationClock.StepsPerSecond);
+                var at = _extraSpawns.Count;
+                while (at > 0 && _extraSpawns[at - 1].Tick > tick)
+                {
+                    at--;
+                }
+
+                _extraSpawns.Insert(at, (tick, spawn));
+            }
+        }
+
+        /// <summary>配置中の味方全員の HP を最大 HP の割合だけ回復する（最大 HP を超えない、spec 002 FR-114）。端数は四捨五入。</summary>
+        public void HealAll(double rate)
+        {
+            foreach (var unit in _units)
+            {
+                if (unit.IsAlive)
+                {
+                    unit.Heal((int)Math.Round(unit.MaxHp * rate, MidpointRounding.AwayFromZero));
+                }
+            }
+        }
 
         /// <summary>配置できるマスかは呼び出し側（<see cref="UnitPlacement"/>、T208）で判定する。</summary>
         /// <param name="upgrade">その種類のいまの強化段階（FR-026）。null なら段階1。</param>
@@ -118,12 +159,22 @@ namespace UnitySlotTower.Core.Battle
             while (_nextSpawn < spawns.Count &&
                    Math.Round(spawns[_nextSpawn].Time * SimulationClock.StepsPerSecond) <= Tick)
             {
-                var spawn = spawns[_nextSpawn++];
-                _enemies.Add(new BattleEnemy(spawn.Enemy, spawn.Path)
-                {
-                    AreaCooldownSteps = StepsOf(spawn.Enemy.AreaInterval),
-                });
+                AddEnemy(spawns[_nextSpawn++]);
             }
+
+            while (_extraSpawns.Count > 0 && _extraSpawns[0].Tick <= Tick)
+            {
+                AddEnemy(_extraSpawns[0].Spawn);
+                _extraSpawns.RemoveAt(0);
+            }
+        }
+
+        private void AddEnemy(WaveSpawn spawn)
+        {
+            _enemies.Add(new BattleEnemy(spawn.Enemy, spawn.Path)
+            {
+                AreaCooldownSteps = StepsOf(spawn.Enemy.AreaInterval),
+            });
         }
 
         /// <summary>出現順に進めるので、同じステップで同じ味方に着いた敵は先に出た方がブロックされる。</summary>
@@ -299,17 +350,12 @@ namespace UnitySlotTower.Core.Battle
 
         /// <summary>
         /// 攻撃間隔ごとに、範囲内の敵を攻撃する（ヒーラーは味方を回復する）。対象がなければ待たずに次のステップで探す。
-        /// バッファーは自分では行動せず、<see cref="AttackOf"/> で範囲内の味方の攻撃力を上げる。
+        /// 攻撃速度上昇の効果中は、次の攻撃までの間隔に倍率をかける（spec 002 FR-112）。
         /// </summary>
         private void Act()
         {
             foreach (var unit in _units)
             {
-                if (unit.Definition.Role == UnitRole.Buff)
-                {
-                    continue;
-                }
-
                 if (unit.AttackCooldownSteps > 0)
                 {
                     unit.AttackCooldownSteps--;
@@ -341,8 +387,8 @@ namespace UnitySlotTower.Core.Battle
                     target.TakeDamage(Damage.Calculate(AttackOf(unit), target.Definition.Def));
                 }
 
-                unit.AttackCooldownSteps =
-                    (int)Math.Round(unit.Definition.AttackInterval * SimulationClock.StepsPerSecond);
+                unit.AttackCooldownSteps = Math.Max(1,
+                    (int)Math.Round(unit.Definition.AttackInterval * _buffs.CurrentIntervalRate * SimulationClock.StepsPerSecond));
             }
         }
 
@@ -402,23 +448,10 @@ namespace UnitySlotTower.Core.Battle
         }
 
         /// <summary>
-        /// 範囲に自分を含む他のバッファーのうち、最も高い倍率だけをかけた攻撃力（重ねがけしない、FR-028）。
-        /// ヒーラーの回復量もこの値。端数は四捨五入する。
+        /// 強化後の攻撃力に、攻撃力上昇の効果中はその倍率をかけた値（spec 002 FR-111）。ヒーラーの回復量もこの値。端数は四捨五入する。
         /// </summary>
-        private int AttackOf(BattleUnit unit)
-        {
-            var rate = 1.0;
-            foreach (var buffer in _units)
-            {
-                if (buffer != unit && buffer.IsAlive && buffer.Definition.Role == UnitRole.Buff &&
-                    buffer.Definition.BuffRate > rate && buffer.InRange(unit.Cell))
-                {
-                    rate = buffer.Definition.BuffRate;
-                }
-            }
-
-            return (int)Math.Round(unit.Atk * rate, MidpointRounding.AwayFromZero);
-        }
+        private int AttackOf(BattleUnit unit) =>
+            (int)Math.Round(unit.Atk * _buffs.CurrentAttackRate, MidpointRounding.AwayFromZero);
 
         /// <summary>
         /// HP0 の敵を消し、使っていたブロックの空きを戻す。ドロップ確率に当たれば、最小〜最大の量（両端を含む一様）を落とす（FR-033）。

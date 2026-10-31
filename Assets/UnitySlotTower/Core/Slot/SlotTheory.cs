@@ -73,8 +73,7 @@ namespace UnitySlotTower.Core.Slot
             // 報酬ベクトルの添字。役ごとの揃った数は RoleIndex から払い出し表の順。
             private const int PayoutIndex = 0;
             private const int GameIndex = 1;
-            private const int ReplayIndex = 2;
-            private const int RoleIndex = 3;
+            private const int RoleIndex = 2;
 
             private static readonly int[][] PressOrders =
             {
@@ -162,7 +161,7 @@ namespace UnitySlotTower.Core.Slot
 
                 return new SlotTheoryResult
                 {
-                    PayoutRate = total[PayoutIndex] / (bet * (total[GameIndex] - total[ReplayIndex])),
+                    PayoutRate = total[PayoutIndex] / (bet * total[GameIndex]),
                     RoleRates = roleRates,
                 };
             }
@@ -361,10 +360,6 @@ namespace UnitySlotTower.Core.Slot
                 {
                     outcome.Payout += _payouts.Get(role).Payout;
                     outcome.Reward[RoleIndex + IndexOfRole(role)] = 1;
-                    if (role == SlotMachine.ReplayRole)
-                    {
-                        outcome.Reward[ReplayIndex] = 1;
-                    }
 
                     if (SlotFlag.IsBonusRole(role))
                     {

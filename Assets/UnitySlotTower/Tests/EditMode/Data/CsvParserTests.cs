@@ -48,7 +48,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         [Test]
         public void Probability_Accepts_Denominator_Notation()
         {
-            var table = CsvParser.Parse("p.csv", "role,p\nbell,1/8\n");
+            var table = CsvParser.Parse("p.csv", "role,p\ncoin,1/8\n");
 
             Assert.That(table.Rows[0].GetProbability("p"), Is.EqualTo(0.125).Within(1e-12));
         }
@@ -56,7 +56,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         [Test]
         public void Probability_Accepts_Decimal_Denominator()
         {
-            var table = CsvParser.Parse("p.csv", "role,p\nbell,1/7.3\n");
+            var table = CsvParser.Parse("p.csv", "role,p\ncoin,1/7.3\n");
 
             Assert.That(table.Rows[0].GetProbability("p"), Is.EqualTo(1.0 / 7.3).Within(1e-12));
         }
@@ -64,7 +64,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         [Test]
         public void Probability_Accepts_Plain_Decimal()
         {
-            var table = CsvParser.Parse("p.csv", "role,p\nbell,0.25\n");
+            var table = CsvParser.Parse("p.csv", "role,p\ncoin,0.25\n");
 
             Assert.That(table.Rows[0].GetProbability("p"), Is.EqualTo(0.25).Within(1e-12));
         }
@@ -81,7 +81,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         [Test]
         public void Zero_Denominator_Is_Rejected()
         {
-            var table = CsvParser.Parse("p.csv", "role,p\nbell,1/0\n");
+            var table = CsvParser.Parse("p.csv", "role,p\ncoin,1/0\n");
 
             Assert.Throws<CsvFormatException>(() => table.Rows[0].GetProbability("p"));
         }

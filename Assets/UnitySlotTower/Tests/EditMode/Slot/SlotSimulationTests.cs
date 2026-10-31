@@ -88,7 +88,6 @@ namespace UnitySlotTower.Tests.EditMode.Slot
                 for (var game = 0; game < Games / Batches; game++)
                 {
                     var wasBonus = machine.State == SlotState.Bonus;
-                    var free = machine.IsReplay;
                     var before = wallet.Coins;
                     Assert.That(machine.TryLever(), Is.True);
                     var order = PressOrders[player.NextInt(0, PressOrders.Length)];
@@ -97,7 +96,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
                         machine.Stop(reel, player.NextInt(0, SlotReels.StopCount));
                     }
 
-                    var gameBet = free ? 0 : tables.Bet;
+                    var gameBet = tables.Bet;
                     bet += gameBet;
                     paid += wallet.Coins - before + gameBet;
                     if (!wasBonus && machine.State == SlotState.Bonus)

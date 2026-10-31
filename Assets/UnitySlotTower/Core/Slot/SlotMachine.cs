@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnitySlotTower.Core.Economy;
 using UnitySlotTower.Core.Simulation;
 
@@ -6,12 +7,10 @@ namespace UnitySlotTower.Core.Slot
 {
     /// <summary>
     /// 1台のスロットのゲーム進行（plan 5章）。レバーで掛け金を投入して内部抽選し、3本止めたら揃った役を払い出す。
-    /// リプレイが揃うと次のゲームは掛け金なしで回せる。
+    /// 揃った役は <see cref="RolesAligned"/> で知らせる（バフ・REG の群れ、spec 002）。
     /// </summary>
     public sealed class SlotMachine
     {
-        public const string ReplayRole = "replay";
-
         private readonly SlotReels _reels;
         private readonly SlotPayouts _payouts;
         private readonly SlotProbabilities _probabilities;
@@ -38,15 +37,15 @@ namespace UnitySlotTower.Core.Slot
             _random = random;
         }
 
-        /// <summary>レバーオン。回転中か、リプレイでなく所持コインが掛け金未満なら何もせず false（FR-040）。</summary>
+        /// <summary>レバーオン。回転中か、所持コインが掛け金未満なら何もせず false（FR-040）。</summary>
         public bool TryLever()
         {
-            if (Spin != null || (!IsReplay && !_wallet.TrySpend(_bet)))
+            if (Spin != null || !_wallet.TrySpend(_bet))
             {
                 return false;
             }
 
-            IsReplay = false;
+            AnnouncesBonus = false;
             Flag = _probabilities.Draw(_random, State, _setting);
             if (CarriedBonus != null)
             {
@@ -91,7 +90,6 @@ namespace UnitySlotTower.Core.Slot
             foreach (var role in aligned)
             {
                 payout += _payouts.Get(role).Payout;
-                IsReplay |= role == ReplayRole;
                 if (SlotFlag.IsBonusRole(role))
                 {
                     State = SlotState.Bonus;
@@ -135,9 +133,25 @@ namespace UnitySlotTower.Core.Slot
                 }
             }
 
+            // 当たったゲーム（ボーナス役が新しく成立したゲーム）は第3停止後に必ず告知する（spec 002 FR-121）。
+            AnnouncesBonus = SlotNotice.ShouldAnnounce(Flag);
+
             _wallet.Add(payout);
             Spin = null;
+            if (aligned.Count > 0)
+            {
+                RolesAligned?.Invoke(aligned);
+            }
         }
+
+        /// <summary>3本目を止めて払い出したあと、揃った役（払い出し表の順）を知らせる。何も揃わなければ呼ばない。</summary>
+        public event Action<IReadOnlyList<string>> RolesAligned;
+
+        /// <summary>直前に終えたゲームでボーナスに当たり、当たり確定の告知を出す（次のレバーオンで戻る、spec 002 FR-121）。</summary>
+        public bool AnnouncesBonus { get; private set; }
+
+        /// <summary>ボーナスに当たっていて、まだ揃えていない（揃えるまで当たりの表示を残す、spec 002 FR-121）。</summary>
+        public bool IsBonusPending => CarriedBonus != null;
 
         private int BonusPayoutLimit(string bonus) => bonus == SlotFlag.BigRole ? _rules.BigPayoutLimit : _rules.RegPayoutLimit;
 
@@ -146,9 +160,6 @@ namespace UnitySlotTower.Core.Slot
 
         /// <summary>確変の残りゲーム数（確変でなければ 0）。</summary>
         public int KakuhenGamesLeft { get; private set; }
-
-        /// <summary>前のゲームでリプレイが揃い、次のレバーで掛け金を取らない。</summary>
-        public bool IsReplay { get; private set; }
 
         /// <summary>抽選に使う状態。ボーナス役を揃えると Bonus になる。</summary>
         public SlotState State { get; private set; } = SlotState.Normal;

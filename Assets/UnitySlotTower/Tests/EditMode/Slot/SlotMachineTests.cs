@@ -61,19 +61,19 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         /// <summary>通常時は BIG、ボーナス中はベルが確率1の台。</summary>
-        private static SlotMachine BigThenBellMachine(CoinWallet wallet, CsvTable rules) =>
-            Machine(wallet, "big,normal,1,1,1,1,1,1\nbell,bonus,1,1,1,1,1,1\n", rules);
+        private static SlotMachine BigThenCoinMachine(CoinWallet wallet, CsvTable rules) =>
+            Machine(wallet, "big,normal,1,1,1,1,1,1\ncoin,bonus,1,1,1,1,1,1\n", rules);
 
         [Test]
         [Description("FR-042 / plan 5章: ボーナス中はボーナス用の抽選表で抽選する")]
         public void Bonus_Game_Draws_From_The_Bonus_Table()
         {
-            var machine = BigThenBellMachine(new CoinWallet(30), ProjectTable(SlotRules.FileName));
+            var machine = BigThenCoinMachine(new CoinWallet(30), ProjectTable(SlotRules.FileName));
             PlayOneGame(machine, BonusPresses("big", null, "big", true));
 
             machine.TryLever();
 
-            Assert.That(machine.Flag.Id, Is.EqualTo("bell"));
+            Assert.That(machine.Flag.Id, Is.EqualTo("coin"));
         }
 
         /// <summary>BIG を揃えてから、ボーナス中のゲームを <paramref name="games"/> 回（ベルを押し位置0で揃える）消化する。</summary>
@@ -90,7 +90,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-042, AC-040: BIG の払い出し累計が上限 240枚（slot_rules.csv）に達したら終わる。ベル8枚×30ゲーム")]
         public void Big_Bonus_Ends_When_Its_Payout_Reaches_The_Limit()
         {
-            var machine = BigThenBellMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
+            var machine = BigThenCoinMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
 
             PlayBigBonusGames(machine, 30);
 
@@ -101,7 +101,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-043, AC-040: BIG 終了後、突入率 100%（slot_rules.csv）で確変に入り、残りは 100 ゲーム")]
         public void Big_End_Enters_Kakuhen_For_Its_Games()
         {
-            var machine = BigThenBellMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
+            var machine = BigThenCoinMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
 
             PlayBigBonusGames(machine, 30);
 
@@ -109,15 +109,19 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         /// <summary>ボーナス上限 20枚（ベル8枚×3ゲーム）、確変 <paramref name="kakuhenGames"/> ゲーム・突入率 <paramref name="entryRate"/> の slot_rules.csv。</summary>
+        // バフの値（spec 002）。この表のテストでは使わない。
+        private const string BuffRules =
+            "attack_buff_rate,1.5\nattack_buff_seconds,20\nspeed_buff_interval_rate,0.6\nspeed_buff_seconds,20\nheal_buff_rate,0.3\n";
+
         private static CsvTable ShortRules(int kakuhenGames, double entryRate) =>
             CsvParser.Parse(SlotRules.FileName,
-                $"key,value\nbig_payout_limit,20\nreg_payout_limit,20\nkakuhen_games,{kakuhenGames}\nkakuhen_entry_rate,{entryRate}\nwait_seconds,2\nmax_slide,4\n");
+                $"key,value\nbig_payout_limit,20\nreg_payout_limit,20\nkakuhen_games,{kakuhenGames}\nkakuhen_entry_rate,{entryRate}\nwait_seconds,2\nmax_slide,4\n" + BuffRules);
 
         [Test]
         [Description("FR-043, AC-040: 確変は N ゲーム（ここでは3）消化したら通常に戻る")]
         public void Kakuhen_Ends_After_Its_Games()
         {
-            var machine = BigThenBellMachine(new CoinWallet(1000), ShortRules(3, 1));
+            var machine = BigThenCoinMachine(new CoinWallet(1000), ShortRules(3, 1));
             PlayBigBonusGames(machine, 3);
             PlayOneGame(machine);
             PlayOneGame(machine);
@@ -132,7 +136,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-043: 突入率 0 なら BIG 終了後は通常に戻る")]
         public void Big_End_Stays_Normal_When_The_Entry_Rate_Is_Zero()
         {
-            var machine = BigThenBellMachine(new CoinWallet(1000), ShortRules(3, 0));
+            var machine = BigThenCoinMachine(new CoinWallet(1000), ShortRules(3, 0));
 
             PlayBigBonusGames(machine, 3);
 
@@ -146,7 +150,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         private static SlotMachine PlayBonusInKakuhen(string kakuhenBonus)
         {
             var machine = Machine(new CoinWallet(1000),
-                $"big,normal,1,1,1,1,1,1\n{kakuhenBonus},kakuhen,1,1,1,1,1,1\nbell,bonus,1,1,1,1,1,1\n", ShortRules(3, 1));
+                $"big,normal,1,1,1,1,1,1\n{kakuhenBonus},kakuhen,1,1,1,1,1,1\ncoin,bonus,1,1,1,1,1,1\n", ShortRules(3, 1));
             PlayBigBonusGames(machine, 3);
             PlayOneGame(machine, BonusPresses(kakuhenBonus, null, kakuhenBonus, true));
             for (var i = 0; i < 3; i++)
@@ -180,7 +184,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-042: 上限 240枚の手前（ベル8枚×29ゲーム = 232枚）ではボーナスが続く")]
         public void Big_Bonus_Continues_Below_The_Limit()
         {
-            var machine = BigThenBellMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
+            var machine = BigThenCoinMachine(new CoinWallet(1000), ProjectTable(SlotRules.FileName));
 
             PlayBigBonusGames(machine, 29);
 
@@ -191,7 +195,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-042, AC-040: REG は上限 96枚（slot_rules.csv）。ベル8枚×12ゲームで終わる")]
         public void Reg_Bonus_Ends_At_Its_Own_Limit()
         {
-            var machine = Machine(new CoinWallet(1000), "reg,normal,1,1,1,1,1,1\nbell,bonus,1,1,1,1,1,1\n", ProjectTable(SlotRules.FileName));
+            var machine = Machine(new CoinWallet(1000), "reg,normal,1,1,1,1,1,1\ncoin,bonus,1,1,1,1,1,1\n", ProjectTable(SlotRules.FileName));
             PlayOneGame(machine, BonusPresses("reg", null, "reg", true));
             for (var i = 0; i < 11; i++)
             {
@@ -209,9 +213,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         public void Last_Bonus_Game_Pays_In_Full_Past_The_Limit()
         {
             var rules = CsvParser.Parse(SlotRules.FileName,
-                "key,value\nbig_payout_limit,20\nreg_payout_limit,20\nkakuhen_games,100\nkakuhen_entry_rate,1\nwait_seconds,2\nmax_slide,4\n");
+                "key,value\nbig_payout_limit,20\nreg_payout_limit,20\nkakuhen_games,100\nkakuhen_entry_rate,1\nwait_seconds,2\nmax_slide,4\n" + BuffRules);
             var wallet = new CoinWallet(1000);
-            var machine = BigThenBellMachine(wallet, rules);
+            var machine = BigThenCoinMachine(wallet, rules);
 
             PlayBigBonusGames(machine, 3);
 
@@ -252,28 +256,96 @@ namespace UnitySlotTower.Tests.EditMode.Slot
 
         [Test]
         [Description("FR-040, FR-041")]
-        public void Aligned_Bell_Pays_Its_Payout_Once()
+        public void Aligned_Coin_Pays_Its_Payout_Once()
         {
             var wallet = new CoinWallet(30);
 
-            PlayOneGame(Machine(wallet, "bell"));
+            PlayOneGame(Machine(wallet, "coin"));
 
-            // 30 - 掛け金3 + ベル8（slot_payouts.csv）。
+            // 30 - 掛け金3 + コイン8（slot_payouts.csv）。
             Assert.That(wallet.Coins, Is.EqualTo(35));
         }
 
         [Test]
-        [Description("FR-041")]
-        public void Game_After_Aligned_Replay_Takes_No_Bet()
+        [Description("spec 002: 揃った役は3本目を止めたときに1回だけ知らせる")]
+        public void Aligned_Roles_Are_Announced_Once_After_The_Third_Stop()
+        {
+            var machine = Machine(new CoinWallet(30), "coin");
+            var announced = new System.Collections.Generic.List<string>();
+            var calls = 0;
+            machine.RolesAligned += roles =>
+            {
+                calls++;
+                announced.AddRange(roles);
+            };
+
+            machine.TryLever();
+            machine.Stop(0, 0);
+            machine.Stop(1, 0);
+            var beforeThird = calls;
+            machine.Stop(2, 0);
+
+            Assert.That((beforeThird, calls, string.Join("+", announced)), Is.EqualTo((0, 1, "coin")));
+        }
+
+        [Test]
+        public void Nothing_Is_Announced_When_Nothing_Aligns()
+        {
+            var machine = Machine(new CoinWallet(30), null);
+            var calls = 0;
+            machine.RolesAligned += _ => calls++;
+
+            PlayOneGame(machine);
+
+            Assert.That(calls, Is.Zero);
+        }
+
+        [Test]
+        [Description("spec 002 E-06: リプレイはなくなり、次のゲームも掛け金を取る")]
+        public void Every_Game_Takes_The_Bet()
         {
             var wallet = new CoinWallet(30);
-            var machine = Machine(wallet, "replay");
+            var machine = Machine(wallet, "coin");
             PlayOneGame(machine);
 
             machine.TryLever();
 
-            // 1ゲーム目の掛け金3だけ減り、リプレイの払い出しは0（slot_payouts.csv）。
-            Assert.That(wallet.Coins, Is.EqualTo(27));
+            Assert.That(wallet.Coins, Is.EqualTo(35 - 3));
+        }
+
+        [Test]
+        [Description("spec 002 FR-121: ボーナスに当たったゲームは揃えなくても第3停止後に告知し、揃えるまで当たりを残す")]
+        public void Winning_Game_Announces_And_Keeps_The_Bonus_Pending()
+        {
+            var machine = Machine(new CoinWallet(30), "big");
+
+            PlayOneGame(machine, BonusPresses("big", null, "big", false));
+
+            Assert.That((machine.AnnouncesBonus, machine.IsBonusPending), Is.EqualTo((true, true)));
+        }
+
+        [Test]
+        [Description("spec 002 FR-121: 持ち越し中のゲームは告知を出し直さず、揃えると当たりの表示が消える")]
+        public void Carried_Game_Does_Not_Announce_Again_And_Aligning_Clears_Pending()
+        {
+            var machine = Machine(new CoinWallet(30), "big");
+            PlayOneGame(machine, BonusPresses("big", null, "big", false));
+
+            PlayOneGame(machine, BonusPresses("hazure", "big", "big", true));
+
+            Assert.That((machine.AnnouncesBonus, machine.IsBonusPending, machine.State),
+                Is.EqualTo((false, false, SlotState.Bonus)));
+        }
+
+        [Test]
+        [Description("spec 002 FR-121: ボーナスに当たっていないゲームでは告知しない")]
+        public void Losing_Game_Does_Not_Announce()
+        {
+            var machine = Machine(new CoinWallet(30), "coin");
+
+            PlayOneGame(machine);
+
+            Assert.That((machine.AnnouncesBonus, machine.IsBonusPending), Is.EqualTo((false, false)));
         }
 
         [Test]

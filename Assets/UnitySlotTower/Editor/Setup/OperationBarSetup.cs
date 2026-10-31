@@ -15,7 +15,7 @@ namespace UnitySlotTower.Editor.Setup
     internal static class OperationBarSetup
     {
         private const string FontPath = "Assets/UnitySlotTower/Art/Fonts/NumericOnly SDF.asset";
-        private const int SlotCount = 5;
+        private const int SlotCount = 4;
         private const int MaxLevel = 5;
 
         private static Sprite _knob;

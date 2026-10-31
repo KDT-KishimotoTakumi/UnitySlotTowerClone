@@ -35,23 +35,19 @@ namespace UnitySlotTower.Tests.EditMode.Battle
 
         // tank: HP1800・防御300・ブロック3、sword: HP1200・防御50・ブロック1、archer: HP700・防御50
         public const string Units =
-            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role,buff_rate\n" +
-            "tank,1800,220,300,1.2,3,ground,15,20,melee,1\n" +
-            "sword,1200,400,50,1,1,ground,12,12,melee,1\n" +
-            "archer,700,350,50,1,0,high,14,15,ranged,1\n" +
-            "healer,800,200,50,1,0,high,18,25,heal,1\n" +
-            "buffer,900,0,50,1,0,high,18,25,buff,1.5\n" +
-            "weak_buffer,900,0,50,1,0,high,18,25,buff,1.2\n";
+            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role\n" +
+            "tank,1800,220,300,1.2,3,ground,15,20,melee\n" +
+            "sword,1200,400,50,1,1,ground,12,12,melee\n" +
+            "archer,700,350,50,1,0,high,14,15,ranged\n" +
+            "healer,800,200,50,1,0,high,18,25,heal\n";
 
-        // 右向き基準。tank・sword: 自マス＋前1、archer・healer・buffer・weak_buffer: 自マスの列から前方 2×3。
+        // 右向き基準。tank・sword: 自マス＋前1、archer・healer: 自マスの列から前方 2×3。
         public const string Ranges =
             "unit_id,dx,dy\n" +
             "tank,0,0\ntank,1,0\n" +
             "sword,0,0\nsword,1,0\n" +
             "archer,0,-1\narcher,0,0\narcher,0,1\narcher,1,-1\narcher,1,0\narcher,1,1\n" +
-            "healer,0,-1\nhealer,0,0\nhealer,0,1\nhealer,1,-1\nhealer,1,0\nhealer,1,1\n" +
-            "buffer,0,-1\nbuffer,0,0\nbuffer,0,1\nbuffer,1,-1\nbuffer,1,0\nbuffer,1,1\n" +
-            "weak_buffer,0,-1\nweak_buffer,0,0\nweak_buffer,0,1\nweak_buffer,1,-1\nweak_buffer,1,0\nweak_buffer,1,1\n";
+            "healer,0,-1\nhealer,0,0\nhealer,0,1\nhealer,1,-1\nhealer,1,0\nhealer,1,1\n";
 
         // sword: 3段階（段階2で HP×1.5・攻撃×1.25・防御×2、費用20）、archer・healer: 2段階、ほかの種類は行がない（強化できない）。
         public const string Upgrades =
@@ -78,8 +74,8 @@ namespace UnitySlotTower.Tests.EditMode.Battle
         public static WaveSchedule LoadWave(string rows, int wave = 1) =>
             WaveSchedule.Load(CsvParser.Parse(WaveSchedule.FileName, WavesHeader + rows), wave, LoadMap(), LoadEnemies());
 
-        /// <summary>既定はライフ10・シード1の戦闘。</summary>
-        public static Battlefield CreateField(string waveRows, int life = 10, IRandom random = null) =>
-            new Battlefield(LoadWave(waveRows), LoadRanges(), life, random ?? new SeededRandom(1));
+        /// <summary>既定はライフ10・シード1・バフなしの戦闘。</summary>
+        public static Battlefield CreateField(string waveRows, int life = 10, IRandom random = null, BattleBuffs buffs = null) =>
+            new Battlefield(LoadWave(waveRows), LoadRanges(), life, random ?? new SeededRandom(1), buffs);
     }
 }

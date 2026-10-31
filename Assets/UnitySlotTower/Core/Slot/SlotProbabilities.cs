@@ -19,7 +19,7 @@ namespace UnitySlotTower.Core.Slot
     {
         public const string HazureId = "hazure";
 
-        /// <summary>CSV の role 列で重複当選の役をつなぐ文字（例 <c>big+center_cherry</c>）。</summary>
+        /// <summary>CSV の role 列で重複当選の役をつなぐ文字（例 <c>big+attack</c>）。</summary>
         public const char RoleSeparator = '+';
 
         public const string BigRole = "big";
@@ -97,7 +97,7 @@ namespace UnitySlotTower.Core.Slot
         }
 
         /// <summary>
-        /// <paramref name="flag"/> からボーナス役を除いたフラグ（例 big+watermelon → watermelon）。表にない組ならハズレ。
+        /// <paramref name="flag"/> からボーナス役を除いたフラグ（例 big+attack → attack）。表にない組ならハズレ。
         /// ボーナス持ち越し中は新たなボーナスを成立させないために使う（plan 5章）。
         /// </summary>
         public SlotFlag WithoutBonus(SlotFlag flag)

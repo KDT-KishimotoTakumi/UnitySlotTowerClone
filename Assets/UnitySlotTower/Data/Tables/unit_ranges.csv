@@ -27,12 +27,3 @@ healer,2,1
 healer,3,-1
 healer,3,0
 healer,3,1
-buffer,0,-1
-buffer,0,0
-buffer,0,1
-buffer,1,-1
-buffer,1,0
-buffer,1,1
-buffer,2,-1
-buffer,2,0
-buffer,2,1

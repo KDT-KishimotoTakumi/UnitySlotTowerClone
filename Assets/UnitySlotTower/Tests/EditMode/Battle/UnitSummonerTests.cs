@@ -11,10 +11,10 @@ namespace UnitySlotTower.Tests.EditMode.Battle
     {
         // tank: コスト15・待ち20秒、sword: コスト12・待ち12秒、archer: コスト14・待ち15秒
         private const string Units =
-            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role,buff_rate\n" +
-            "tank,1800,220,300,1.2,3,ground,15,20,melee,1\n" +
-            "sword,1200,400,150,1,2,ground,12,12,melee,1\n" +
-            "archer,700,350,50,1,0,high,14,15,ranged,1\n";
+            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role\n" +
+            "tank,1800,220,300,1.2,3,ground,15,20,melee\n" +
+            "sword,1200,400,150,1,2,ground,12,12,melee\n" +
+            "archer,700,350,50,1,0,high,14,15,ranged\n";
 
         private CoinWallet _wallet;
 

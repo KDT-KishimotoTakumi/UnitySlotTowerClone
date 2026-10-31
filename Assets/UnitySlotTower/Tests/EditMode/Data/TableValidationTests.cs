@@ -73,7 +73,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         public void Probability_Sum_Above_One_Is_An_Error()
         {
             var table = CsvParser.Parse("slot_probabilities.csv",
-                "role,state,setting1\nbell,normal,1/2\nreplay,normal,1/1.5\nbell,kakuhen,1/2\n");
+                "role,state,setting1\ncoin,normal,1/2\nattack,normal,1/1.5\ncoin,kakuhen,1/2\n");
             var report = new ValidationReport();
 
             TableValidator.ValidateProbabilitySum(table, "state", new[] { "setting1" }, report);
@@ -85,7 +85,7 @@ namespace UnitySlotTower.Tests.EditMode.Data
         public void Probability_Sum_Up_To_One_Is_Valid()
         {
             var table = CsvParser.Parse("slot_probabilities.csv",
-                "role,state,setting1\nbell,normal,1/2\nreplay,normal,1/2\n");
+                "role,state,setting1\ncoin,normal,1/2\nattack,normal,1/2\n");
             var report = new ValidationReport();
 
             TableValidator.ValidateProbabilitySum(table, "state", new[] { "setting1" }, report);

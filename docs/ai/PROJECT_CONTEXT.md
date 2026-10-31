@@ -5,8 +5,8 @@ Unity project at repository root (created 2026-10-26). This is an index of confi
 | Topic | Confirmed fact / source |
 | --- | --- |
 | Name | UnitySlotTower (folder, productName in `ProjectSettings/ProjectSettings.asset`); official title unconfirmed |
-| Repository | https://github.com/acururc/UnitySlotTower.git (`main`) |
-| Gameplay / targets | Undecided. Start with the `spec` skill; current state in `HANDOFF.md` |
+| Repository | https://github.com/KDT-KishimotoTakumi/UnitySlotTowerClone.git (`main`; clone of https://github.com/acururc/UnitySlotTower.git) |
+| Gameplay / targets | Slot × tower defense: `specs/001-slot-tower-defense/spec.md`, changed by `specs/002-slot-battle-link/spec.md`; current state in `HANDOFF.md` |
 | Unity | 6000.6.7f1 — `ProjectSettings/ProjectVersion.txt`; created from the bundled `com.unity.template.urp-blank-17.2.6` template |
 | Rendering | URP 17.6.0 (3D) — package files; `Assets/Settings/PC_RPAsset.asset` / `Mobile_RPAsset.asset` |
 | Input | Input System 1.20.1, `activeInputHandler: 1` (new only); `Assets/InputSystem_Actions.inputactions` |

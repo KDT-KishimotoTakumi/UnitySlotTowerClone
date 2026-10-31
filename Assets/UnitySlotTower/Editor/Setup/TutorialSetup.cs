@@ -13,7 +13,7 @@ namespace UnitySlotTower.Editor.Setup
     /// </summary>
     internal static class TutorialSetup
     {
-        private const int SlotCount = 5;
+        private const int SlotCount = 4;
 
         [MenuItem("Tools/UnitySlotTower/Setup/Add Tutorial")]
         private static void Build()

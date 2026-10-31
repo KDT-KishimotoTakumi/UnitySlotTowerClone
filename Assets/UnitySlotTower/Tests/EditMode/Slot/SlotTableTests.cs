@@ -13,7 +13,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
             CsvParser.Parse(fileName, File.ReadAllText(Path.Combine(TablePaths.Root, fileName)));
 
         [Test]
-        [Description("plan 5章: 3リール×21コマ、図柄は 7・BAR・ベル・スイカ・チェリー・リプレイ")]
+        [Description("plan 5章・spec 002 E-06: 3リール×21コマ、図柄は 7・BAR・攻撃力・攻撃速度・HP回復・コイン")]
         public void Project_Reels_Use_Every_Symbol_On_Every_Reel()
         {
             var reels = SlotReels.Load(ProjectTable(SlotReels.FileName));
@@ -36,20 +36,43 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Test]
         public void Missing_Reel_Index_Is_Reported()
         {
-            var text = "index,reel1,reel2,reel3\n" + string.Concat(Enumerable.Range(0, 20).Select(i => $"{i},bell,bell,bell\n"));
+            var text = "index,reel1,reel2,reel3\n" + string.Concat(Enumerable.Range(0, 20).Select(i => $"{i},coin,coin,coin\n"));
 
             var ex = Assert.Throws<CsvFormatException>(() => SlotReels.Load(CsvParser.Parse("slot_reels.csv", text)));
             Assert.That(ex.Error.Message, Does.Contain("20"));
         }
 
         [Test]
-        [Description("FR-041: ベル・リプレイ・チェリー・スイカ・中段チェリー・BIG・REG")]
+        [Description("spec 002 FR-100: 攻撃力・攻撃速度・HP回復・コイン（各3つ揃い）・BIG・REG の6役だけ")]
         public void Project_Payouts_Define_All_Roles()
         {
             var payouts = SlotPayouts.Load(ProjectTable(SlotPayouts.FileName));
 
             Assert.That(payouts.All.Select(p => p.Role),
-                Is.EquivalentTo(new[] { "replay", "bell", "watermelon", "cherry", "center_cherry", "big", "reg" }));
+                Is.EquivalentTo(new[] { "attack", "speed", "heal", "coin", "big", "reg" }));
+        }
+
+        [TestCase("attack", SlotSymbol.Attack)]
+        [TestCase("speed", SlotSymbol.Speed)]
+        [TestCase("heal", SlotSymbol.Heal)]
+        [TestCase("coin", SlotSymbol.Coin)]
+        [Description("spec 002 FR-100: バフ役とコインは同じ図柄の3つ揃い")]
+        public void Small_Roles_Are_Three_Of_A_Kind(string role, SlotSymbol symbol)
+        {
+            var payouts = SlotPayouts.Load(ProjectTable(SlotPayouts.FileName));
+
+            Assert.That(payouts.Get(role).Symbols, Is.EqualTo(new SlotSymbol?[] { symbol, symbol, symbol }));
+        }
+
+        [Test]
+        [Description("spec 002 AC-100: 旧役（リプレイ・ベル・スイカ・チェリー・中段チェリー）が表に残っていない")]
+        public void Old_Roles_Are_Not_In_Any_Slot_Table()
+        {
+            var old = new[] { "replay", "bell", "watermelon", "cherry" };
+            var tables = new[] { SlotReels.FileName, SlotPayouts.FileName, SlotProbabilities.FileName, SlotPremonition.FileName }
+                .Select(name => File.ReadAllText(Path.Combine(TablePaths.Root, name)));
+
+            Assert.That(tables.SelectMany(text => old.Where(text.Contains)), Is.Empty);
         }
 
         [Test]
@@ -73,18 +96,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("plan 5章: チェリーは左リールだけで成立する")]
-        public void Cherry_Needs_Only_The_Left_Reel()
-        {
-            var payouts = SlotPayouts.Load(ProjectTable(SlotPayouts.FileName));
-
-            Assert.That(payouts.Get("cherry").Symbols, Is.EqualTo(new SlotSymbol?[] { SlotSymbol.Cherry, null, null }));
-        }
-
-        [Test]
         public void Duplicate_Role_Is_Reported_With_Its_Line()
         {
-            var text = "role,payout,symbol1,symbol2,symbol3\nbell,8,bell,bell,bell\nbell,6,bell,bell,bell\n";
+            var text = "role,payout,symbol1,symbol2,symbol3\ncoin,8,coin,coin,coin\ncoin,6,coin,coin,coin\n";
 
             var ex = Assert.Throws<CsvFormatException>(() => SlotPayouts.Load(CsvParser.Parse("slot_payouts.csv", text)));
             Assert.That(ex.Error.Line, Is.EqualTo(3));
@@ -99,6 +113,17 @@ namespace UnitySlotTower.Tests.EditMode.Slot
             Assert.That((rules.BigPayoutLimit, rules.RegPayoutLimit, rules.KakuhenGames, rules.KakuhenEntryRate,
                     rules.WaitSeconds, rules.MaxSlide),
                 Is.EqualTo((240, 96, 100, 1.0, 2.0, 4)));
+        }
+
+        [Test]
+        [Description("spec 002 FR-111〜FR-114: バフの倍率・秒数・回復割合は slot_rules.csv で決める")]
+        public void Project_Rules_Hold_Buff_Values()
+        {
+            var rules = SlotRules.Load(ProjectTable(SlotRules.FileName));
+
+            Assert.That((rules.AttackBuffRate, rules.AttackBuffSeconds, rules.SpeedBuffIntervalRate, rules.SpeedBuffSeconds,
+                    rules.HealBuffRate),
+                Is.EqualTo((1.5, 20.0, 0.6, 20.0, 0.3)));
         }
     }
 }

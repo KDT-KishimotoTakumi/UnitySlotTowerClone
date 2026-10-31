@@ -2,15 +2,15 @@ using UnitySlotTower.Core.Data;
 
 namespace UnitySlotTower.Core.Slot
 {
-    /// <summary>リールの図柄（plan 5章）。</summary>
+    /// <summary>リールの図柄（spec 002 E-06）。攻撃力・攻撃速度・HP回復はバフ役、コインは小役の図柄。</summary>
     public enum SlotSymbol
     {
         Seven,
         Bar,
-        Bell,
-        Watermelon,
-        Cherry,
-        Replay,
+        Attack,
+        Speed,
+        Heal,
+        Coin,
     }
 
     public static class SlotSymbols
@@ -25,10 +25,10 @@ namespace UnitySlotTower.Core.Slot
             {
                 case "seven": return SlotSymbol.Seven;
                 case "bar": return SlotSymbol.Bar;
-                case "bell": return SlotSymbol.Bell;
-                case "watermelon": return SlotSymbol.Watermelon;
-                case "cherry": return SlotSymbol.Cherry;
-                case "replay": return SlotSymbol.Replay;
+                case "attack": return SlotSymbol.Attack;
+                case "speed": return SlotSymbol.Speed;
+                case "heal": return SlotSymbol.Heal;
+                case "coin": return SlotSymbol.Coin;
                 default: throw row.Error(column, $"未知の図柄 '{row.Get(column)}'");
             }
         }

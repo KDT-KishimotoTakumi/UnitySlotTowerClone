@@ -78,7 +78,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("plan 5章: 表にない残りの確率はハズレ")]
         public void Remaining_Probability_Is_Hazure()
         {
-            var probabilities = Load("bell,normal,1/4,1/4,1/4,1/4,1/4,1/4\n");
+            var probabilities = Load("coin,normal,1/4,1/4,1/4,1/4,1/4,1/4\n");
 
             Assert.That(probabilities.Probability(probabilities.Hazure, SlotState.Normal, 1), Is.EqualTo(0.75).Within(1e-12));
             Assert.That(probabilities.Probability(probabilities.Hazure, SlotState.Kakuhen, 1), Is.EqualTo(1.0));
@@ -86,32 +86,32 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("plan 5章: BIG・REG は中段チェリー・スイカとの重複当選を表で定義できる")]
+        [Description("plan 5章: BIG・REG は小役との重複当選を表で定義できる")]
         public void Joined_Roles_Make_One_Overlapping_Flag()
         {
-            var probabilities = Load("big+center_cherry,normal,1,1,1,1,1,1\n");
+            var probabilities = Load("big+attack,normal,1,1,1,1,1,1\n");
 
             var flag = probabilities.Draw(new SeededRandom(1), SlotState.Normal, 1);
 
-            Assert.That((flag.Has("big"), flag.Has("center_cherry"), flag.Has("bell")), Is.EqualTo((true, true, false)));
+            Assert.That((flag.Has("big"), flag.Has("attack"), flag.Has("coin")), Is.EqualTo((true, true, false)));
         }
 
         [Test]
         [Description("FR-045: 設定によって確率が変わる")]
         public void Setting_Selects_Its_Column()
         {
-            var probabilities = Load("bell,normal,0,0,0,0,0,1\n");
+            var probabilities = Load("coin,normal,0,0,0,0,0,1\n");
 
             Assert.That((probabilities.Draw(new SeededRandom(1), SlotState.Normal, 1).Id,
                     probabilities.Draw(new SeededRandom(1), SlotState.Normal, 6).Id),
-                Is.EqualTo((SlotFlag.HazureId, "bell")));
+                Is.EqualTo((SlotFlag.HazureId, "coin")));
         }
 
         [TestCase(0)]
         [TestCase(7)]
         public void Setting_Out_Of_Range_Throws(int setting)
         {
-            var probabilities = Load("bell,normal,1/4,1/4,1/4,1/4,1/4,1/4\n");
+            var probabilities = Load("coin,normal,1/4,1/4,1/4,1/4,1/4,1/4\n");
 
             Assert.Throws<ArgumentOutOfRangeException>(() => probabilities.Draw(new SeededRandom(1), SlotState.Normal, setting));
         }
@@ -129,7 +129,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Test]
         [Description("plan 5章: ボーナス持ち越し中は、重複当選からボーナス役を外した小役だけが成立する")]
         public void Without_Bonus_Leaves_Only_The_Small_Role(
-            [Values("big+center_cherry:center_cherry", "big+watermelon:watermelon", "reg+watermelon:watermelon", "big:hazure", "bell:bell")] string pair)
+            [Values("big+attack:attack", "big+speed:speed", "reg+heal:heal", "big:hazure", "coin:coin")] string pair)
         {
             var probabilities = ProjectProbabilities();
             var ids = pair.Split(':');
@@ -143,7 +143,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         public void Duplicate_Role_And_State_Is_Reported()
         {
             var ex = Assert.Throws<CsvFormatException>(() =>
-                Load("bell,normal,0,0,0,0,0,0\nreplay,normal,0,0,0,0,0,0\nbell,normal,0,0,0,0,0,0\n"));
+                Load("coin,normal,0,0,0,0,0,0\nattack,normal,0,0,0,0,0,0\ncoin,normal,0,0,0,0,0,0\n"));
 
             Assert.That(ex.Error.Line, Is.EqualTo(4));
         }
@@ -152,7 +152,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         public void Sum_Above_One_Is_Reported()
         {
             var ex = Assert.Throws<CsvFormatException>(() =>
-                Load("bell,normal,1/2,0,0,0,0,0\nreplay,normal,0.6,0,0,0,0,0\n"));
+                Load("coin,normal,1/2,0,0,0,0,0\nattack,normal,0.6,0,0,0,0,0\n"));
 
             Assert.That(ex.Error.Message, Does.Contain("setting1"));
         }

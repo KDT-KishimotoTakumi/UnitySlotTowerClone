@@ -22,7 +22,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         /// <summary>重複当選も含め、プロジェクトの役で作った抽選表（確率は使わない）。</summary>
         private static SlotProbabilities Flags() =>
             SlotProbabilities.Load(CsvParser.Parse(SlotProbabilities.FileName, ProbabilityHeader +
-                "watermelon,normal,0,0,0,0,0,0\nbig,normal,0,0,0,0,0,0\nbig+watermelon,normal,0,0,0,0,0,0\n"), ProjectPayouts());
+                "attack,normal,0,0,0,0,0,0\nbig,normal,0,0,0,0,0,0\nbig+attack,normal,0,0,0,0,0,0\n"), ProjectPayouts());
 
         private static SlotFlag Flag(string id)
         {
@@ -47,16 +47,16 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-044, AC-042: 成立役の行の発生率で先バレする")]
         public void Rate_Comes_From_The_Role_Row()
         {
-            var premonition = Load("watermelon,1/2\n");
+            var premonition = Load("attack,1/2\n");
 
-            Assert.That(premonition.Rate(Flag("watermelon")), Is.EqualTo(0.5));
+            Assert.That(premonition.Rate(Flag("attack")), Is.EqualTo(0.5));
         }
 
         [Test]
         [Description("FR-044, AC-042: 表にない役は先バレしない")]
         public void Unlisted_Role_Never_Premonishes()
         {
-            var premonition = Load("watermelon,1\n");
+            var premonition = Load("attack,1\n");
 
             Assert.That(premonition.Rate(Flag("big")), Is.EqualTo(0));
         }
@@ -74,9 +74,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("plan 5章: 重複当選はその役のうち最も高い発生率で1回だけ抽選する")]
         public void Overlapping_Flag_Uses_The_Highest_Rate_Of_Its_Roles()
         {
-            var premonition = Load("watermelon,1/2\nbig,1/8\n");
+            var premonition = Load("attack,1/2\nbig,1/8\n");
 
-            Assert.That(premonition.Rate(Flag("big+watermelon")), Is.EqualTo(0.5));
+            Assert.That(premonition.Rate(Flag("big+attack")), Is.EqualTo(0.5));
         }
 
         [Test]
@@ -85,8 +85,8 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         {
             const int draws = 100000;
             const double rate = 0.3;
-            var premonition = Load("watermelon,0.3\n");
-            var flag = Flag("watermelon");
+            var premonition = Load("attack,0.3\n");
+            var flag = Flag("attack");
             var random = new SeededRandom(20261029);
 
             var count = 0;
@@ -142,7 +142,7 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         [Description("FR-050: 発生率が 0〜1 の範囲外なら読み込みエラー")]
         public void Rate_Out_Of_Range_Is_A_Load_Error()
         {
-            Assert.Throws<CsvFormatException>(() => Load("watermelon,1.5\n"));
+            Assert.Throws<CsvFormatException>(() => Load("attack,1.5\n"));
         }
     }
 }

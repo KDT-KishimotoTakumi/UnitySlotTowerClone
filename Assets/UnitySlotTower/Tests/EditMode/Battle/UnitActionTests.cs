@@ -190,32 +190,5 @@ namespace UnitySlotTower.Tests.EditMode.Battle
 
             Assert.That(field.Enemies[0].Hp, Is.EqualTo(1000));
         }
-
-        [Test]
-        [Description("AC-022: バッファーは範囲内の味方の攻撃力に倍率をかける")]
-        public void Buffer_Raises_The_Attack_Of_Allies_In_Range()
-        {
-            var field = Create("1,0,melee,S1,g,0\n");
-            Place(field, "archer", 1, 1);
-            Place(field, "buffer", 0, 1);
-
-            field.Advance(45);
-
-            Assert.That(field.Enemies[0].Hp, Is.EqualTo(1000 - (525 - 50)));
-        }
-
-        [Test]
-        [Description("plan 5章: 強化は重ねがけせず、最も高い倍率だけが効く")]
-        public void Only_The_Highest_Buff_Applies()
-        {
-            var field = Create("1,0,melee,S1,g,0\n");
-            Place(field, "archer", 1, 1);
-            Place(field, "weak_buffer", 0, 1);
-            Place(field, "buffer", 0, 1);
-
-            field.Advance(45);
-
-            Assert.That(field.Enemies[0].Hp, Is.EqualTo(1000 - (525 - 50)));
-        }
     }
 }

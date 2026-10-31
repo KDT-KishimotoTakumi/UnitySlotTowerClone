@@ -15,8 +15,8 @@ namespace UnitySlotTower.Tests.EditMode.Battle
         private const string Archer = "archer,1,0\narcher,2,0\narcher,1,1\n";
 
         private static readonly UnitTable Units = UnitTable.Load(CsvParser.Parse(UnitTable.FileName,
-            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role,buff_rate\n" +
-            "archer,700,350,50,1,0,high,14,15,ranged,1\n"));
+            "id,max_hp,atk,def,attack_interval,block,tile,cost,cooldown,role\n" +
+            "archer,700,350,50,1,0,high,14,15,ranged\n"));
 
         private static readonly GridPoint Origin = new GridPoint(5, 5);
 

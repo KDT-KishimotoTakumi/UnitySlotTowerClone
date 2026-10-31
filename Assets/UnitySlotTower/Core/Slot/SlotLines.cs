@@ -7,9 +7,6 @@ namespace UnitySlotTower.Core.Slot
     {
         public const int LineCount = 5;
 
-        public const string CherryRole = "cherry";
-        public const string CenterCherryRole = "center_cherry";
-
         // [ライン, リール] の段（-1 上段・0 中段・1 下段）。上・中・下・左上から右下・左下から右上。
         private static readonly int[,] Rows =
         {
@@ -28,7 +25,7 @@ namespace UnitySlotTower.Core.Slot
             {
                 for (var line = 0; line < LineCount; line++)
                 {
-                    if (CanUseLine(payout.Role, line) && Matches(reels, payout, stops, line))
+                    if (Matches(reels, payout, stops, line))
                     {
                         aligned.Add(payout.Role);
                         break;
@@ -37,17 +34,6 @@ namespace UnitySlotTower.Core.Slot
             }
 
             return aligned;
-        }
-
-        // チェリーは左リールの段で区別する: 中段なら中段チェリー、上段・下段なら角チェリー。
-        private static bool CanUseLine(string role, int line)
-        {
-            switch (role)
-            {
-                case CherryRole: return Rows[line, 0] != 0;
-                case CenterCherryRole: return Rows[line, 0] == 0;
-                default: return true;
-            }
         }
 
         private static bool Matches(SlotReels reels, SlotPayout payout, IReadOnlyList<int> stops, int line)

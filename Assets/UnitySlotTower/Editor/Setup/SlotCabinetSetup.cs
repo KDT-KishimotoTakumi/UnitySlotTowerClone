@@ -4,6 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnitySlotTower.Battle;
 using UnitySlotTower.Core.Slot;
 using UnitySlotTower.Slot;
 
@@ -19,6 +20,9 @@ namespace UnitySlotTower.Editor.Setup
         private const string FontPath = "Assets/UnitySlotTower/Art/Fonts/NumericOnly SDF.asset";
         private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
         private const int CellCount = 5;
+
+        /// <summary>当たり確定ランプの色（spec 002 FR-121）。</summary>
+        internal static readonly Color NoticeLampColor = new Color(1f, 0.35f, 0.85f);
 
         private static Sprite _knob;
         private static Sprite _box;
@@ -71,8 +75,8 @@ namespace UnitySlotTower.Editor.Setup
                 new Color(1f, 0.2f, 0.2f), _knob, true);
             var kakuhen = CreateImage("Kakuhen Lamp", slotArea, new Vector2(0.62f, 0.91f), new Vector2(0.75f, 0.98f),
                 new Color(0.9f, 0.3f, 1f), _knob, true);
-            var replay = CreateImage("Replay Lamp", slotArea, new Vector2(0.77f, 0.91f), new Vector2(0.9f, 0.98f),
-                new Color(0.3f, 0.6f, 1f), _knob, true);
+            var notice = CreateImage("Notice Lamp", slotArea, new Vector2(0.77f, 0.91f), new Vector2(0.9f, 0.98f),
+                NoticeLampColor, _knob, true);
 
             var coin = CreateImage("Coin Icon", slotArea, new Vector2(0.1f, 0.365f), new Vector2(0.17f, 0.425f),
                 new Color(1f, 0.82f, 0.2f), _knob, true);
@@ -97,7 +101,7 @@ namespace UnitySlotTower.Editor.Setup
             serialized.FindProperty("premonitionLamp").objectReferenceValue = premonition;
             serialized.FindProperty("bonusLamp").objectReferenceValue = bonus;
             serialized.FindProperty("kakuhenLamp").objectReferenceValue = kakuhen;
-            serialized.FindProperty("replayLamp").objectReferenceValue = replay;
+            serialized.FindProperty("noticeLamp").objectReferenceValue = notice;
             serialized.FindProperty("coinIcon").objectReferenceValue = coin;
             serialized.FindProperty("creditText").objectReferenceValue = credit;
             serialized.FindProperty("payoutText").objectReferenceValue = payout;
@@ -144,21 +148,42 @@ namespace UnitySlotTower.Editor.Setup
             seven.fontStyle = FontStyles.Bold;
 
             CreateImage("Bar", cell, new Vector2(0.12f, 0.32f), new Vector2(0.88f, 0.68f), new Color(0.1f, 0.1f, 0.12f), _box, false);
-            CreateImage("Bell", cell, new Vector2(0.25f, 0.12f), new Vector2(0.75f, 0.88f), new Color(1f, 0.8f, 0.1f), _knob, true);
-            CreateImage("Watermelon", cell, new Vector2(0.15f, 0.06f), new Vector2(0.85f, 0.94f), new Color(0.15f, 0.6f, 0.2f), _knob, true);
-
-            var cherry = CreateRect("Cherry", cell, Vector2.zero, Vector2.one);
-            CreateImage("Cherry L", cherry, new Vector2(0.2f, 0.15f), new Vector2(0.5f, 0.6f), new Color(0.85f, 0.1f, 0.3f), _knob, true);
-            CreateImage("Cherry R", cherry, new Vector2(0.5f, 0.15f), new Vector2(0.8f, 0.6f), new Color(0.85f, 0.1f, 0.3f), _knob, true);
-
-            var replay = CreateImage("Replay", cell, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Color(0.2f, 0.45f, 0.95f), _box, false);
-            replay.rectTransform.sizeDelta = new Vector2(90f, 90f);
-            replay.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            CreateBuffSymbols(cell, _knob, _box);
 
             for (var i = 0; i < cell.childCount; i++)
             {
                 cell.GetChild(i).gameObject.SetActive(false);
             }
+        }
+
+        /// <summary>
+        /// 7・BAR に続く図柄（spec 002 E-06）を SlotSymbol の順に足す。攻撃力は赤い上向き三角、攻撃速度は青い右向きの二重三角、
+        /// HP回復は緑の十字、コインは金の二重丸。
+        /// </summary>
+        internal static void CreateBuffSymbols(RectTransform cell, Sprite knob, Sprite box)
+        {
+            var attack = CreateRect("Attack", cell, new Vector2(0.18f, 0.1f), new Vector2(0.82f, 0.9f));
+            var arrow = CreateRect("Arrow", attack, Vector2.zero, Vector2.one).gameObject.AddComponent<TriangleGraphic>();
+            arrow.color = new Color(0.9f, 0.15f, 0.1f);
+            arrow.raycastTarget = false;
+            arrow.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+
+            var speed = CreateRect("Speed", cell, new Vector2(0.1f, 0.18f), new Vector2(0.9f, 0.82f));
+            for (var i = 0; i < 2; i++)
+            {
+                var chevron = CreateRect("Chevron " + (i + 1), speed, new Vector2(i * 0.45f, 0f), new Vector2(0.55f + i * 0.45f, 1f))
+                    .gameObject.AddComponent<TriangleGraphic>();
+                chevron.color = new Color(0.15f, 0.45f, 0.95f);
+                chevron.raycastTarget = false;
+            }
+
+            var heal = CreateRect("Heal", cell, Vector2.zero, Vector2.one);
+            var green = new Color(0.15f, 0.75f, 0.3f);
+            CreateImage("Cross V", heal, new Vector2(0.38f, 0.12f), new Vector2(0.62f, 0.88f), green, box, false);
+            CreateImage("Cross H", heal, new Vector2(0.2f, 0.32f), new Vector2(0.8f, 0.68f), green, box, false);
+
+            var coin = CreateImage("Coin", cell, new Vector2(0.12f, 0.08f), new Vector2(0.88f, 0.92f), new Color(1f, 0.8f, 0.15f), knob, true);
+            CreateImage("Inner", coin.rectTransform, new Vector2(0.25f, 0.25f), new Vector2(0.75f, 0.75f), new Color(0.85f, 0.6f, 0.05f), knob, true);
         }
 
         private static RectTransform CreateRect(string name, RectTransform parent, Vector2 anchorMin, Vector2 anchorMax)

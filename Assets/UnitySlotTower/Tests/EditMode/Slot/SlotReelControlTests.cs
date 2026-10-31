@@ -119,9 +119,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("AC-041 / plan 5章: リプレイ・ベル・ハズレはどの押し順・押し位置でも成立役どおりの出目になる")]
-        public void Replay_Bell_And_Hazure_Always_Show_Exactly_The_Flag(
-            [Values("hazure", "replay", "bell")] string flagId)
+        [Description("AC-041・spec 002 AC-100: コイン・ハズレはどの押し順・押し位置でも成立役どおりの出目になる")]
+        public void Coin_And_Hazure_Always_Show_Exactly_The_Flag(
+            [Values("hazure", "coin")] string flagId)
         {
             var flag = Flag(flagId);
             var failures = new List<string>();
@@ -137,9 +137,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("FR-040: レア役・ボーナスは、押した位置のままでは揃わない目押しでも滑りで引き込まれる")]
+        [Description("FR-040: バフ役・ボーナスは、押した位置のままでは揃わない目押しでも滑りで引き込まれる")]
         public void Flagged_Roles_Are_Pulled_In_By_Sliding(
-            [Values("watermelon", "cherry", "center_cherry", "big", "reg")] string flagId)
+            [Values("attack", "speed", "heal", "big", "reg")] string flagId)
         {
             var reels = ProjectReels();
             var payouts = ProjectPayouts();
@@ -188,9 +188,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("plan 5章: 持ち越し中のボーナスは小役より優先して引き込む（レア役が成立しても揃う回数はハズレのとき以上）")]
-        public void Carried_Bonus_Has_Priority_Over_Rare_Roles(
-            [Values("watermelon", "cherry", "center_cherry")] string flagId,
+        [Description("plan 5章: 持ち越し中のボーナスは小役より優先して引き込む（バフ役が成立しても揃う回数はハズレのとき以上）")]
+        public void Carried_Bonus_Has_Priority_Over_Buff_Roles(
+            [Values("attack", "speed", "heal")] string flagId,
             [Values("big", "reg")] string bonus)
         {
             var withRareRole = BonusAlignedGames(Flag(flagId), bonus, bonus);
@@ -199,9 +199,9 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("plan 5章: ボーナスとレア役の重複当選でも、ボーナスはボーナス単独のとき以上に揃う")]
-        public void Bonus_Has_Priority_Over_A_Rare_Role_Drawn_With_It(
-            [Values("big+center_cherry", "big+watermelon", "reg+watermelon")] string flagId)
+        [Description("plan 5章: ボーナスとバフ役の重複当選でも、ボーナスはボーナス単独のとき以上に揃う")]
+        public void Bonus_Has_Priority_Over_A_Buff_Role_Drawn_With_It(
+            [Values("big+attack", "big+speed", "reg+heal")] string flagId)
         {
             var bonus = flagId.Split(SlotFlag.RoleSeparator)[0];
             var together = BonusAlignedGames(Flag(flagId), null, bonus);
@@ -210,39 +210,21 @@ namespace UnitySlotTower.Tests.EditMode.Slot
         }
 
         [Test]
-        [Description("plan 5章: 左リール中段のチェリーは中段チェリー（左 4-5-6 = replay/cherry/bell）")]
-        public void Cherry_On_Left_Middle_Is_Center_Cherry()
+        [Description("plan 5章: 斜めライン（左上・中中・右下）のコイン（左 0、中 0、右 20）")]
+        public void Coin_On_Diagonal_Line_Is_Aligned()
         {
-            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 5, 0, 0 });
+            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 1, 0, 19 });
 
-            Assert.That(aligned, Is.EqualTo(new[] { "center_cherry" }));
+            Assert.That(aligned, Is.EqualTo(new[] { "coin" }));
         }
 
         [Test]
-        [Description("plan 5章: 左リール上段のチェリーは角チェリー（左 5-6-7 = cherry/bell/watermelon）")]
-        public void Cherry_On_Left_Top_Is_Corner_Cherry()
-        {
-            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 6, 0, 1 });
-
-            Assert.That(aligned, Is.EqualTo(new[] { "cherry" }));
-        }
-
-        [Test]
-        [Description("plan 5章: 斜めライン（左上・中中・右下）のベル")]
-        public void Bell_On_Diagonal_Line_Is_Aligned()
-        {
-            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 3, 2, 5 });
-
-            Assert.That(aligned, Is.EqualTo(new[] { "bell" }));
-        }
-
-        [Test]
-        [Description("plan 5章: 左上がりの斜めでスイカと角チェリーが同時に揃う（左 5-6-7、中 20-0-1、右 20-0-1）")]
+        [Description("plan 5章: 中段のコインと下段の HP回復が同時に揃う（左 3-4-5、中 6-7-8、右 20-0-1）")]
         public void Two_Roles_Can_Align_At_Once()
         {
-            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 6, 0, 0 });
+            var aligned = SlotLines.Aligned(ProjectReels(), ProjectPayouts(), new[] { 4, 7, 0 });
 
-            Assert.That(aligned, Is.EquivalentTo(new[] { "cherry", "watermelon" }));
+            Assert.That(aligned, Is.EquivalentTo(new[] { "heal", "coin" }));
         }
     }
 }

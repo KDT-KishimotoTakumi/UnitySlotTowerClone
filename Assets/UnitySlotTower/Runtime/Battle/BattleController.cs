@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnitySlotTower.Core.Battle;
 using UnitySlotTower.Core.Data;
@@ -12,6 +13,7 @@ namespace UnitySlotTower.Battle
     /// ウェーブの進行（<see cref="WaveRun"/>）を組み立てて実時間で進める。財布はスロット筐体と共有する（T301）。
     /// スロット操作中も止まらない（FR-011）。戦闘は ▶（<see cref="StartWave"/>）で始める。autoStart なら準備に入るとすぐ始める。
     /// ウェーブ n はマップ w{n} で戦い、ウェーブが始まるとフィールドの表示を差し替える（T305）。
+    /// スロットで揃った役（バフ・HP回復・REG の群れ）をウェーブの進行に渡す（spec 002）。
     /// </summary>
     [DefaultExecutionOrder(-10)]
     public sealed class BattleController : MonoBehaviour
@@ -23,6 +25,8 @@ namespace UnitySlotTower.Battle
         [SerializeField] private TextAsset unitUpgradesTable;
         [SerializeField] private TextAsset enemiesTable;
         [SerializeField] private TextAsset wavesTable;
+        [Tooltip("REG が揃ったときの敵の群れ（spec 002）。")]
+        [SerializeField] private TextAsset regSwarmsTable;
 
         [SerializeField] private BattleFieldView fieldView;
         [Tooltip("所持コインを共有するスロット筐体。")]
@@ -68,6 +72,10 @@ namespace UnitySlotTower.Battle
                 var upgradeTable = UnitUpgradeTable.Load(Parse(UnitUpgradeTable.FileName, unitUpgradesTable), Units);
                 var enemies = EnemyTable.Load(Parse(EnemyTable.FileName, enemiesTable));
                 var waves = Parse(WaveSchedule.FileName, wavesTable);
+                var swarms = RegSwarmTable.Load(Parse(RegSwarmTable.FileName, regSwarmsTable), enemies);
+                var rules = slotCabinet.Rules;
+                var buffs = new BattleBuffs(rules.AttackBuffRate, rules.AttackBuffSeconds, rules.SpeedBuffIntervalRate,
+                    rules.SpeedBuffSeconds, rules.HealBuffRate);
                 var wallet = slotCabinet.Wallet;
                 Run = new WaveRun(config, Units, ranges, new UnitUpgrades(upgradeTable, wallet), wallet, waveCount,
                     wave =>
@@ -75,8 +83,9 @@ namespace UnitySlotTower.Battle
                         var map = wave == 1 ? fieldView.Map : fieldView.LoadWaveMap(wave);
                         return new WaveStage(map, WaveSchedule.Load(waves, wave, map, enemies));
                     },
-                    new SeededRandom((ulong)DateTime.UtcNow.Ticks));
+                    new SeededRandom((ulong)DateTime.UtcNow.Ticks), buffs, swarms.Create);
                 Run.WaveBegan += OnWaveBegan;
+                slotCabinet.RolesAligned += OnSlotRolesAligned;
             }
             catch (Exception e)
             {
@@ -158,10 +167,22 @@ namespace UnitySlotTower.Battle
             if (Run != null)
             {
                 Run.WaveBegan -= OnWaveBegan;
+                if (slotCabinet != null)
+                {
+                    slotCabinet.RolesAligned -= OnSlotRolesAligned;
+                }
             }
         }
 
         private void OnWaveBegan(int wave) => fieldView.Show(Run.Map);
+
+        private void OnSlotRolesAligned(IReadOnlyList<string> roles)
+        {
+            foreach (var role in roles)
+            {
+                Run.ApplySlotRole(role);
+            }
+        }
 
         private void Update()
         {

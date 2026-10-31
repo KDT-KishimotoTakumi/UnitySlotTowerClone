@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using UnitySlotTower.Core.Data;
 using UnitySlotTower.Core.Economy;
@@ -14,7 +16,9 @@ namespace UnitySlotTower.Slot
 {
     /// <summary>
     /// 下部のスロット筐体の仮表示（T110、plan 2・3・5章）。ベット＋レバー（Space）で回し、J/K/L かボタンで目押しする。
-    /// ランプ: 先バレ（ボーナスを揃えるまで点灯）・ボーナス中・確変中・リプレイ。数字: クレジット・払い出し・ボーナス中の払い出し累計か確変の残りゲーム数。
+    /// ランプ: 先バレ（ボーナスを揃えるまで点灯）・ボーナス中・確変中・当たり確定（ボーナスを揃えるまで点滅、spec 002 FR-121）。
+    /// 数字: クレジット・払い出し・ボーナス中の払い出し累計か確変の残りゲーム数。
+    /// 揃った役・先バレ・当たり確定は、リールが見た目の上でも止まってからイベントで知らせる（戦闘のバフ・群れと演出、spec 002）。
     /// </summary>
     public sealed class SlotCabinet : MonoBehaviour
     {
@@ -42,7 +46,9 @@ namespace UnitySlotTower.Slot
         [SerializeField] private Graphic premonitionLamp;
         [SerializeField] private Graphic bonusLamp;
         [SerializeField] private Graphic kakuhenLamp;
-        [SerializeField] private Graphic replayLamp;
+        [Tooltip("当たり確定ランプ。ボーナスに当たってから揃えるまで点滅する。")]
+        [SerializeField, FormerlySerializedAs("replayLamp")] private Graphic noticeLamp;
+        [SerializeField] private float noticeBlinkPerSecond = 4f;
         [SerializeField] private Graphic coinIcon;
         [SerializeField] private TMP_Text creditText;
         [SerializeField] private TMP_Text payoutText;
@@ -70,6 +76,9 @@ namespace UnitySlotTower.Slot
         private int _shownCredit = -1;
         private int _shownPayout = -1;
         private int _shownCounter = -1;
+        private readonly List<string> _pendingAligned = new List<string>();
+        private bool _pendingAnnounce;
+        private bool _pendingResult;
 
         /// <summary>所持コイン。戦闘の召喚・撃破ドロップと共有する（FR-040、T301）。Awake で作る。</summary>
         public CoinWallet Wallet => _wallet;
@@ -83,6 +92,21 @@ namespace UnitySlotTower.Slot
         /// <summary>スロットの状態（通常・ボーナス・確変）。読み込みに失敗していれば通常。</summary>
         public SlotState State => _machine?.State ?? SlotState.Normal;
 
+        /// <summary>slot_rules.csv の値（バフの倍率・秒数を含む）。読み込みに失敗していれば null。</summary>
+        public SlotRules Rules { get; private set; }
+
+        /// <summary>ボーナスに当たっていて、まだ揃えていない（spec 002 FR-121）。</summary>
+        public bool IsBonusPending => _machine != null && _machine.IsBonusPending;
+
+        /// <summary>レバーオンで先バレが起きた（spec 002 FR-120）。</summary>
+        public event Action PremonitionStarted;
+
+        /// <summary>ボーナスに当たったゲームの第3停止後（リールが止まって見えてから）。BIG・REG は区別しない（spec 002 FR-121）。</summary>
+        public event Action BonusAnnounced;
+
+        /// <summary>揃った役（払い出し表の順）。リールが止まって見えてから知らせる（spec 002）。</summary>
+        public event Action<IReadOnlyList<string>> RolesAligned;
+
         private void Awake()
         {
             setting = GameSession.SelectedSetting ?? setting;
@@ -95,11 +119,13 @@ namespace UnitySlotTower.Slot
                 var probabilities = SlotProbabilities.Load(Parse(SlotProbabilities.FileName, probabilitiesTable), payouts);
                 var premonition = SlotPremonition.Load(Parse(SlotPremonition.FileName, premonitionTable), payouts);
                 var rules = SlotRules.Load(Parse(SlotRules.FileName, rulesTable));
+                Rules = rules;
                 _wallet = new CoinWallet(config.InitialCoins);
                 _wait = new SlotWait(rules.WaitSeconds);
                 var control = new SlotReelControl(slotReels, payouts, rules.MaxSlide);
                 _machine = new SlotMachine(slotReels, payouts, probabilities, premonition, control, rules, _wallet,
                     config.Bet, setting, new SeededRandom((ulong)DateTime.UtcNow.Ticks));
+                _machine.RolesAligned += OnRolesAligned;
             }
             catch (Exception e)
             {
@@ -113,7 +139,7 @@ namespace UnitySlotTower.Slot
                 reels[i].Initialize(slotReels, i, 0);
             }
 
-            _lamps = new[] { premonitionLamp, bonusLamp, kakuhenLamp, replayLamp };
+            _lamps = new[] { premonitionLamp, bonusLamp, kakuhenLamp, noticeLamp };
             _lampOnColors = new Color[_lamps.Length];
             for (var i = 0; i < _lamps.Length; i++)
             {
@@ -212,6 +238,39 @@ namespace UnitySlotTower.Slot
             if (_machine.Spin == null)
             {
                 _lastPayout = _wallet.Coins - _coinsBeforeLastStop;
+                _pendingResult = true;
+                _pendingAnnounce = _machine.AnnouncesBonus;
+            }
+        }
+
+        private void OnRolesAligned(IReadOnlyList<string> roles)
+        {
+            _pendingAligned.Clear();
+            _pendingAligned.AddRange(roles);
+        }
+
+        private void OnDestroy()
+        {
+            if (_machine != null)
+            {
+                _machine.RolesAligned -= OnRolesAligned;
+            }
+        }
+
+        // 3本目を押したゲームの結果を、リールが見た目の上でも止まってから知らせる。
+        private void PublishResult()
+        {
+            _pendingResult = false;
+            if (_pendingAnnounce)
+            {
+                _pendingAnnounce = false;
+                BonusAnnounced?.Invoke();
+            }
+
+            if (_pendingAligned.Count > 0)
+            {
+                RolesAligned?.Invoke(_pendingAligned);
+                _pendingAligned.Clear();
             }
         }
 
@@ -220,6 +279,11 @@ namespace UnitySlotTower.Slot
             var now = Time.timeAsDouble;
             if (_wait.Consume(now))
             {
+                if (_pendingResult)
+                {
+                    PublishResult();
+                }
+
                 if (_machine.TryLever())
                 {
                     _wait.Started(now);
@@ -233,6 +297,7 @@ namespace UnitySlotTower.Slot
                     {
                         _premonitionLit = true;
                         audioSource.PlayOneShot(premonitionSound);
+                        PremonitionStarted?.Invoke();
                     }
                 }
                 else
@@ -250,7 +315,7 @@ namespace UnitySlotTower.Slot
             SetLamp(0, _premonitionLit);
             SetLamp(1, _machine.State == SlotState.Bonus);
             SetLamp(2, _machine.State == SlotState.Kakuhen);
-            SetLamp(3, _machine.IsReplay);
+            SetLamp(3, _machine.IsBonusPending && !_pendingResult && (int)(now * noticeBlinkPerSecond * 2) % 2 == 0);
 
             var blink = now < _coinBlinkUntil && (int)(now * 10) % 2 == 0;
             coinIcon.enabled = !blink;
@@ -259,6 +324,10 @@ namespace UnitySlotTower.Slot
             if (_machine.Spin != null || !AnyReelSpinning())
             {
                 UpdateNumbers();
+                if (_pendingResult && _machine.Spin == null)
+                {
+                    PublishResult();
+                }
             }
         }
 

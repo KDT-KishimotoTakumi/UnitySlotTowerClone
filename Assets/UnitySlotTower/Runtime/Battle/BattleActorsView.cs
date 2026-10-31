@@ -36,7 +36,6 @@ namespace UnitySlotTower.Battle
             new UnitLook { id = "sword", shape = PrimitiveType.Cube, size = new Vector3(0.4f, 0.75f, 0.4f), color = new Color(0.85f, 0.3f, 0.25f) },
             new UnitLook { id = "archer", shape = PrimitiveType.Cylinder, size = new Vector3(0.45f, 0.4f, 0.45f), color = new Color(0.35f, 0.75f, 0.35f) },
             new UnitLook { id = "healer", shape = PrimitiveType.Sphere, size = new Vector3(0.6f, 0.6f, 0.6f), color = new Color(0.95f, 0.75f, 0.85f) },
-            new UnitLook { id = "buffer", shape = PrimitiveType.Capsule, size = new Vector3(0.45f, 0.4f, 0.45f), color = new Color(0.95f, 0.8f, 0.25f) },
         };
         [SerializeField] private Color unknownUnitColor = new Color(0.8f, 0.8f, 0.8f);
         [SerializeField] private Color noseColor = new Color(0.15f, 0.15f, 0.18f);

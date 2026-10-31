@@ -36,7 +36,7 @@ namespace UnitySlotTower.Core.Slot
             return new SlotSpin(plan);
         }
 
-        // 必ず揃える役は、全押し方で揃えられる最大の組（リプレイ・ベル）。レア役・ボーナスは取りこぼしありで空になる。
+        // 必ず揃える役は、全押し方で揃えられる最大の組。揃えられない役（ボーナスなど）は取りこぼしありになる。
         private SlotControlPlan CreatePlan(SlotFlag flag, string carriedBonus)
         {
             var allowed = new List<string>(flag.Roles);

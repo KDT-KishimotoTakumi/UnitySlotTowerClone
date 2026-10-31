@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using UnitySlotTower.Core.Data;
 using UnitySlotTower.Core.Economy;
 using UnitySlotTower.Core.Simulation;
+using UnitySlotTower.Core.Slot;
 
 namespace UnitySlotTower.Core.Battle
 {
@@ -30,7 +32,8 @@ namespace UnitySlotTower.Core.Battle
 
     /// <summary>
     /// ウェーブの進行（FR-010, FR-013〜016、plan 4章）。準備 → 戦闘 → 終了（ライフボーナス・ストック化）→ 次のウェーブの準備 と進める。
-    /// 財布・強化・ストックはウェーブをまたいで同じものを使い、戦闘・召喚・配置操作はウェーブごとに作り直す。
+    /// 財布・強化・ストック・バフはウェーブをまたいで同じものを使い、戦闘・召喚・配置操作はウェーブごとに作り直す。
+    /// スロットで揃った役（バフ・REG）は <see cref="ApplySlotRole"/> で受け取る（spec 002）。
     /// </summary>
     public sealed class WaveRun
     {
@@ -40,14 +43,20 @@ namespace UnitySlotTower.Core.Battle
         private readonly int _waveCount;
         private readonly Func<int, WaveStage> _loadStage;
         private readonly IRandom _random;
+        private readonly Func<int, BattleMap, IReadOnlyList<WaveSpawn>> _createSwarm;
 
         private int _collectedDrops;
 
         /// <param name="waveCount">最後のウェーブの番号（1から）。</param>
         /// <param name="loadStage">ウェーブ番号からそのウェーブのマップと出現内容を返す。</param>
+        /// <param name="buffs">スロットのバフ（null ならバフ役は何もしない）。</param>
+        /// <param name="createSwarm">ウェーブ番号とマップから REG の群れ1回分を返す（null なら群れは出ない）。</param>
         public WaveRun(GameConfig config, UnitTable units, UnitRanges ranges, UnitUpgrades upgrades, CoinWallet wallet,
-            int waveCount, Func<int, WaveStage> loadStage, IRandom random)
+            int waveCount, Func<int, WaveStage> loadStage, IRandom random, BattleBuffs buffs = null,
+            Func<int, BattleMap, IReadOnlyList<WaveSpawn>> createSwarm = null)
         {
+            Buffs = buffs ?? BattleBuffs.None;
+            _createSwarm = createSwarm;
             _config = config;
             _units = units;
             _ranges = ranges;
@@ -64,6 +73,15 @@ namespace UnitySlotTower.Core.Battle
         public CoinWallet Wallet { get; }
         public UnitUpgrades Upgrades { get; }
         public UnitStock Stock { get; } = new UnitStock();
+
+        /// <summary>スロットのバフ役の効果（spec 002 FR-111〜FR-114）。</summary>
+        public BattleBuffs Buffs { get; }
+
+        /// <summary>準備中に REG が揃ってためている群れの数。戦闘開始で全部出す（spec 002 FR-102）。</summary>
+        public int PendingSwarms { get; private set; }
+
+        /// <summary>スロットの役で効果が起きた（バフ・HP回復・REG の群れ）。引数は役の ID。</summary>
+        public event Action<string> SlotRoleApplied;
 
         /// <summary>最後に終えたウェーブのライフボーナス（まだなければ 0）。</summary>
         public int LastLifeBonus { get; private set; }
@@ -88,7 +106,54 @@ namespace UnitySlotTower.Core.Battle
 
             Phase = WavePhase.Fighting;
             Summoner.IgnoresCooldown = false;
+            for (; PendingSwarms > 0; PendingSwarms--)
+            {
+                ReleaseSwarm();
+            }
         }
+
+        /// <summary>
+        /// スロットで揃った役を戦闘に効かせる（spec 002）。攻撃力・攻撃速度は効果時間を最初から数え直し、HP回復は配置中の味方を回復し、
+        /// REG は群れを出す（準備中はためる）。最後のウェーブを終えた後やゲームオーバー後は何もせず false。効果のない役も false。
+        /// </summary>
+        public bool ApplySlotRole(string role)
+        {
+            if (Phase == WavePhase.Completed || Phase == WavePhase.GameOver)
+            {
+                return false;
+            }
+
+            switch (role)
+            {
+                case BattleBuffs.AttackRole:
+                    Buffs.StartAttack();
+                    break;
+                case BattleBuffs.SpeedRole:
+                    Buffs.StartSpeed();
+                    break;
+                case BattleBuffs.HealRole:
+                    Field.HealAll(Buffs.HealRate);
+                    break;
+                case SlotFlag.RegRole when _createSwarm != null:
+                    if (Phase == WavePhase.Preparing)
+                    {
+                        PendingSwarms++;
+                    }
+                    else
+                    {
+                        ReleaseSwarm();
+                    }
+
+                    break;
+                default:
+                    return false;
+            }
+
+            SlotRoleApplied?.Invoke(role);
+            return true;
+        }
+
+        private void ReleaseSwarm() => Field.AddSpawns(_createSwarm(Wave, Map));
 
         /// <summary>
         /// 戦闘中だけ時間を進める。撃破ドロップは落ちた時点で財布に入れる（FR-033）。ウェーブが終わったら残りのステップは捨てる
@@ -98,6 +163,7 @@ namespace UnitySlotTower.Core.Battle
         {
             for (var i = 0; i < steps && Phase == WavePhase.Fighting; i++)
             {
+                Buffs.Advance(1);
                 Field.Advance(1);
                 Summoner.Advance(1);
                 CollectDrops();
@@ -151,7 +217,7 @@ namespace UnitySlotTower.Core.Battle
             Wave = wave;
             Phase = WavePhase.Preparing;
             Map = stage.Map;
-            Field = new Battlefield(stage.Schedule, _ranges, _config.Life, _random);
+            Field = new Battlefield(stage.Schedule, _ranges, _config.Life, _random, Buffs);
             _collectedDrops = 0;
             Summoner = new UnitSummoner(_units, Wallet, _config.DeployLimit, _config.RetreatRefundRate, Stock)
             {

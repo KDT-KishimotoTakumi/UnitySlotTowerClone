@@ -14,7 +14,7 @@ namespace UnitySlotTower.Core.Data
         private static readonly string[] Settings =
             { "setting1", "setting2", "setting3", "setting4", "setting5", "setting6" };
 
-        private static readonly string[] Symbols = { "seven", "bar", "bell", "watermelon", "cherry", "replay" };
+        private static readonly string[] Symbols = { "seven", "bar", "attack", "speed", "heal", "coin" };
 
         private static readonly ColumnRule[] GameConfigKeys =
         {
@@ -34,6 +34,11 @@ namespace UnitySlotTower.Core.Data
             ColumnRule.Float("kakuhen_entry_rate", 0, 1),
             ColumnRule.Float("wait_seconds", 0, 60),
             ColumnRule.Int("max_slide", 0, 20),
+            ColumnRule.Float("attack_buff_rate", 1, 10),
+            ColumnRule.Float("attack_buff_seconds", 0, 600),
+            ColumnRule.Float("speed_buff_interval_rate", 0.1, 1),
+            ColumnRule.Float("speed_buff_seconds", 0, 600),
+            ColumnRule.Float("heal_buff_rate", 0, 1),
         };
 
         private static readonly TableSchema[] Schemas =
@@ -48,8 +53,7 @@ namespace UnitySlotTower.Core.Data
                 ColumnRule.Enum("tile", "ground", "high"),
                 ColumnRule.Int("cost", 0, 10000),
                 ColumnRule.Float("cooldown", 0, 600),
-                ColumnRule.Enum("role", "melee", "ranged", "heal", "buff"),
-                ColumnRule.Float("buff_rate", 1, 10)),
+                ColumnRule.Enum("role", "melee", "ranged", "heal")),
             new TableSchema("unit_ranges.csv", new[] { "unit_id", "dx", "dy" },
                 ColumnRule.Id("unit_id"),
                 ColumnRule.Int("dx", -9, 9),
@@ -115,6 +119,11 @@ namespace UnitySlotTower.Core.Data
             new TableSchema("slot_premonition.csv", new[] { "role" },
                 ColumnRule.Id("role"),
                 ColumnRule.Probability("rate")),
+            new TableSchema("reg_swarms.csv", null,
+                ColumnRule.Int("wave", 1, MapCount),
+                ColumnRule.Id("enemy_id"),
+                ColumnRule.Int("count", 1, 100),
+                ColumnRule.Float("interval", 0, 60)),
         };
 
         private static readonly HashSet<string> MapTiles = new HashSet<string>
@@ -157,7 +166,8 @@ namespace UnitySlotTower.Core.Data
             TableValidator.ValidateReference(tables["unit_upgrades.csv"], "unit_id", tables["units.csv"], "id", report);
             TableValidator.ValidateReference(tables["waves.csv"], "enemy_id", tables["enemies.csv"], "id", report);
             TableValidator.ValidateReference(tables["waves.csv"], "path_id", tables["map_paths.csv"], "path_id", report);
-            // 重複当選は役を '+' でつなぐ（例 big+center_cherry）。
+            TableValidator.ValidateReference(tables["reg_swarms.csv"], "enemy_id", tables["enemies.csv"], "id", report);
+            // 重複当選は役を '+' でつなぐ（例 big+attack）。
             TableValidator.ValidateListReference(tables["slot_probabilities.csv"], "role", '+',
                 tables["slot_payouts.csv"], "role", report);
             // ハズレは払い出し表にないが、先バレの「ガセ」として発生率を持てる（plan 5章）。
@@ -169,6 +179,7 @@ namespace UnitySlotTower.Core.Data
             TableValidator.ValidatePathContinuity(tables["map_paths.csv"], report);
             var battleMaps = ValidateMapPaths(files, tables["map_paths.csv"], maps, report);
             ValidateWaves(tables["waves.csv"], tables["enemies.csv"], battleMaps, report);
+            ValidateSwarms(tables["reg_swarms.csv"], tables["enemies.csv"], battleMaps, report);
             return report;
         }
 
@@ -309,6 +320,39 @@ namespace UnitySlotTower.Core.Data
                     {
                         report.Add(new CsvError(waves.FileName, 0, 0, $"ウェーブ {wave} の敵がない"));
                     }
+                }
+                catch (CsvFormatException ex)
+                {
+                    report.Add(ex.Error);
+                }
+            }
+        }
+
+        /// <summary>REG の群れの敵が、そのウェーブのマップの経路（地上・空中）で出られるかを <see cref="RegSwarmTable"/> で確かめる。</summary>
+        private static void ValidateSwarms(CsvTable swarms, CsvTable enemyTable, Dictionary<string, BattleMap> maps,
+            ValidationReport report)
+        {
+            RegSwarmTable table;
+            try
+            {
+                table = RegSwarmTable.Load(swarms, EnemyTable.Load(enemyTable));
+            }
+            catch (CsvFormatException ex)
+            {
+                report.Add(ex.Error);
+                return;
+            }
+
+            for (var wave = 1; wave <= MapCount; wave++)
+            {
+                if (!maps.TryGetValue($"w{wave}", out var map))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    table.Create(wave, map);
                 }
                 catch (CsvFormatException ex)
                 {

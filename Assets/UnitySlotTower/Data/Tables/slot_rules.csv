@@ -5,3 +5,8 @@ kakuhen_games,100
 kakuhen_entry_rate,1
 wait_seconds,2
 max_slide,4
+attack_buff_rate,1.5
+attack_buff_seconds,20
+speed_buff_interval_rate,0.6
+speed_buff_seconds,20
+heal_buff_rate,0.3
