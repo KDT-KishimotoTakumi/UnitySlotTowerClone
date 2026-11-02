@@ -1,0 +1,13 @@
+﻿wave,enemy_id,count,interval
+1,melee,5,0.8
+2,melee,6,0.8
+2,ranged,2,1.5
+3,melee,6,0.8
+3,ranged,2,1.5
+3,air,2,1.5
+4,melee,8,0.7
+4,ranged,3,1.2
+4,air,2,1.5
+5,melee,10,0.6
+5,ranged,4,1
+5,air,3,1.2

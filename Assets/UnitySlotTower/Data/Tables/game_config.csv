@@ -1,0 +1,7 @@
+﻿key,value
+initial_coins,30
+bet,3
+life,10
+life_bonus_per_life,3
+deploy_limit,8
+retreat_refund_rate,0.5
